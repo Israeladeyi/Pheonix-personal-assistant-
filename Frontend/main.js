@@ -3,9 +3,9 @@ const synth = window.speechSynthesis;
     recognition.lang = 'en-US';
     recognition.interimResults = false;
 
-    const apiKey = 'YOUR_GOOGLE_API_KEY';
+    const apiKey = 'AIzaSyD3RO_JFzn5NYh_NXjueg_kBdJbBYa3rFs';
     const cx = 'YOUR_CUSTOM_SEARCH_ENGINE_ID';
-    const weatherApiKey = 'YOUR_OPENWEATHER_API_KEY';
+    const weatherApiKey = 'ccbee0f046cde04d99db1a20a3630353';
     const backendUrl = 'https://your-backend-domain.com'; // Replace with your deployed backend URL
 
     let accessToken = localStorage.getItem('spotify_access_token');
