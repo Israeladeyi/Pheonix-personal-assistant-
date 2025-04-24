@@ -50,15 +50,15 @@
     recognition.lang = 'en-US';
     recognition.interimResults = false;
 
-    const apiKey = 'AIzaSyD3RO_JFzn5NYh_NXjueg_kBdJbBYa3rFs'; // Replace with your Google API key
-    const cx = '26c215b77186a44bf'; // Replace with your Google Custom Search Engine CX
-    const weatherApiKey = 'ccbee0f046cde04d99db1a20a3630353'; // Replace with your weather API key
-    const iftttKey = 'YOUR_IFTTT_WEBHOOK_KEY'; // Replace with your IFTTT Webhook key
-    const clientId = 'eeab699d6af448a4bb6304f02f929222'; // Replace with your Spotify Client ID
-    const clientSecret = 'af75a37054614637a48ade34bb4de50e'; // Replace with your Spotify Client Secret
-    const redirectUri = 'https://pheonix-personal-assistant.vercel.app/'; // Replace with your redirect URI
-
-    let accessToken = ''; // Spotify access token
+    // === Inserted Your Actual API Credentials ===
+    const apiKey = 'AIzaSyCqNUCaFxxFZnwb9dZC2T2SDkKTKMzh7Tg';
+    const cx = 'c4c3a2d185fdc4f8b';
+    const weatherApiKey = 'f08e02ffef944eb7d0c8a6c39678cc9f';
+    const iftttKey = 'pEpZLJP_AnqgTSZczanE6';
+    const clientId = '6b71c4c20a35485b86f45e383e1776a0';
+    const clientSecret = 'fb78b2a2dcf24b69b186f1c78c2c199f';
+    const redirectUri = 'https://pheonix-personal-assistant.vercel.app/';
+    let accessToken = '';
 
     recognition.start();
 
@@ -78,12 +78,15 @@
     };
 
     recognition.onend = () => {
-      recognition.start(); // Keeps listening
+      recognition.start();
     };
 
     function respond(message) {
       const utterance = new SpeechSynthesisUtterance(message);
-      utterance.onend = () => recognition.start();
+      synth.cancel();
+      utterance.onend = () => {
+        setTimeout(() => recognition.start(), 500);
+      };
       synth.speak(utterance);
     }
 
@@ -139,17 +142,15 @@
           if (data.cod === 200) {
             const weather = data.weather[0].description;
             const temp = data.main.temp;
-            const response = `Weather in ${location}: ${weather}, ${temp}°C`;
+            const response = `Weather in ${location}: ${weather}, ${temp} degrees Celsius`;
             document.getElementById('output').innerText = response;
             respond(response);
           } else {
-            document.getElementById('output').innerText = `Couldn't find weather info for ${location}`;
             respond(`No weather info found for ${location}`);
           }
         })
         .catch(err => {
           console.error(err);
-          document.getElementById('output').innerText = "Weather API error.";
           respond("Something went wrong getting weather info.");
         });
     }
@@ -160,32 +161,43 @@
         return;
       }
 
-      const encoded = encodeURIComponent(song);
-      const spotifyUrl = `https://api.spotify.com/v1/me/player/play`;
-      const body = {
-        uris: [`spotify:track:${encoded}`]
-      };
+      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(song)}&type=track&limit=1`;
 
-      fetch(spotifyUrl, {
-        method: 'PUT',
+      fetch(searchUrl, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+          'Authorization': `Bearer ${accessToken}`
+        }
       })
-      .then(response => response.json())
+      .then(res => res.json())
       .then(data => {
-        respond(`Playing ${song} on Spotify.`);
+        const track = data.tracks.items[0];
+        if (!track) {
+          respond("I couldn't find that song on Spotify.");
+          return;
+        }
+
+        fetch('https://api.spotify.com/v1/me/player/play', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uris: [`spotify:track:${track.id}`] })
+        })
+        .then(() => respond(`Playing ${track.name} by ${track.artists[0].name}`))
+        .catch(err => {
+          console.error('Playback error:', err);
+          respond("Something went wrong trying to play the song.");
+        });
       })
       .catch(err => {
-        console.error('Error playing music on Spotify:', err);
-        respond('Sorry, I couldn\'t play the music on Spotify.');
+        console.error('Search error:', err);
+        respond("Error searching for music on Spotify.");
       });
     }
 
     function loginToSpotify() {
-      const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=user-library-read user-read-private user-read-email streaming user-modify-playback-state&redirect_uri=${redirectUri}`;
+      const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=user-read-playback-state user-modify-playback-state streaming&redirect_uri=${redirectUri}`;
       window.location.href = authUrl;
     }
 
@@ -208,13 +220,13 @@
       .then(data => {
         accessToken = data.access_token;
         console.log('Spotify Access Token:', accessToken);
+        respond("Spotify login successful.");
       })
       .catch(err => {
         console.error('Error fetching Spotify access token:', err);
       });
     }
 
-    // Check if URL has authorization code after Spotify login redirect
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     if (code) {
@@ -228,7 +240,6 @@
       document.getElementById('output').innerText = response;
       respond(response);
 
-      // Make the IFTTT webhook request
       fetch(`https://maker.ifttt.com/trigger/your_event_name/with/key/${iftttKey}`, {
         method: 'POST',
         headers: {
